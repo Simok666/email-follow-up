@@ -3,7 +3,7 @@ const service = require('./followup.service');
 async function add(req, res) {
     const { step, delayDays, emailBody } = req.body;
     
-    if (!step || !delayDays || !emailBody) {
+    if (step === undefined || delayDays === undefined || !emailBody) {
         return res.status(400).json({ message: 'Invalid follow-up data' });
     }
 

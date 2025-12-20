@@ -1,7 +1,10 @@
 const pool = require('../../config/db')
+const followupQueue = require('../../queues/followup.queue')
 const { v4: uuidv4 } = require('uuid')
 
 async function addFollowup(campaignId, step, delayDays, emailBody) {
+    const delayMs = delayDays * 24 * 60 * 60 * 1000
+
     const result = await pool.query(
         `
          INSERT INTO followups (id, campaign_id, step, delay_days, email_body, sent_at)
@@ -10,6 +13,19 @@ async function addFollowup(campaignId, step, delayDays, emailBody) {
         `,
         [uuidv4(), campaignId, step, delayDays, emailBody]
     )
+
+    const followup = result.rows[0]
+
+    await followupQueue.add(
+        'send-followup',
+        {
+            followupId : followup.id
+        },
+        {
+            delay : delayMs
+        }
+    )
+
     return result.rows[0]
 }
 
