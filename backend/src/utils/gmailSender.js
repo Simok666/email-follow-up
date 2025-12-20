@@ -30,12 +30,16 @@ async function sendEmail({ userId, body }){
     .replace(/\+/g, '-')
     .replace(/\//g, '-')
 
-    await gmail.users.messages.send({
+    const response = await gmail.users.messages.send({
         userId: 'me',
         requestBody: {
             raw: encodedMessage
         }
     })
+
+    const threadId = response.data.threadId
+
+    return { threadId }
 }
 
 module.exports = sendEmail

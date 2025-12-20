@@ -26,7 +26,7 @@ new Worker(
 
             if (!followup) throw new Error('Followup not found')
 
-            await sendEmail({
+            const {threadId } = await sendEmail({
                 userId: followup.user_id,
                 body: followup.email_body
             })
@@ -34,10 +34,11 @@ new Worker(
             await pool.query(
                 `
                 UPDATE followups
-                SET sent_at = NOW()
-                WHERE id = $1
+                SET sent_at = NOW(),
+                    thread_id = $1
+                WHERE id = $2
                 `,
-                [followupId]
+                [threadId, followupId]
             )
 
             console.log('follow-up sent:', followupId)
