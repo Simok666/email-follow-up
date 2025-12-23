@@ -2,32 +2,46 @@ const bcrypt  = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { v4: uuid4 } = require('uuid')
 const pool = require('../../config/db')
+const prisma = require('../../config/prisma')
 
 const SALT_ROUNDS = 10
 
 
 async function register ({ email, password }) {
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    try {
 
-    const result = await pool.query(
-        `
-            INSERT INTO users (id, email, password)
-            VALUES ($1, $2, $3)
-            RETURNING id, email, plan, created_at
-        `,
-        [uuid4(), email, hashedPassword]
-    )
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
 
-    return result.rows[0]
+        const user = await prisma.user.create({
+            data : {
+                id: uuid4(),
+                email,
+                password: hashedPassword
+            },
+            select : {
+                id: true,
+                email: true,
+                plan: true,
+                createdAt: true
+            }
+        })
+
+        return user
+
+    } catch (e) {
+        if (e.code === 'P2002') {
+            throw new Error('Email already exists')
+        } 
+    }
 }
 
 async function login({ email, password }) {
-    const result = await pool.query(
-        `SELECT * FROM users WHERE email = $1`,
-        [email]
-    )
+    const user = await prisma.user.findUnique({
+        where : {
+            email
+        }
+    })
 
-    const user = result.rows[0]
     if (!user) throw new Error('Invalid Credentials')
 
     const match = await bcrypt.compare(password, user.password)
@@ -42,9 +56,9 @@ async function login({ email, password }) {
     return {
         token,
         user: {
-        id: user.id,
-        email: user.email,
-        plan: user.plan
+            id: user.id,
+            email: user.email,
+            plan: user.plan
         }
     }
 }

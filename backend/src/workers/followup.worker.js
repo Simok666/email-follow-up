@@ -1,7 +1,7 @@
 require('dotenv').config()
 const { Worker } = require('bullmq')
 const connection = require('../config/redis')
-const pool = require('../config/db')
+const prisma = require('../config/prisma')
 const sendEmail = require('../utils/gmailSender')
 
 new Worker(
@@ -12,34 +12,36 @@ new Worker(
             console.log('DB PASSWORD:', process.env.DB_PASSWORD)
             const { followupId } = job.data
 
-            const result = await pool.query(
-                `
-                SELECT f.*, c.user_id
-                FROM followups f
-                JOIN campaigns c ON c.id = f.campaign_id
-                WHERE f.id = $1
-                `,
-                [followupId]
-            )
+            const followup = await prisma.followup.findUnique({
+                where: {
+                    id: followupId
+                },
+                include: {
+                    campaign: {
+                        select: {
+                            userId: true,
+                            subject: true,
+                            status: true
+                        }
+                    }
+                }
+            })
 
-            const followup = result.rows[0]
 
             if (!followup) throw new Error('Followup not found')
 
-            const {threadId } = await sendEmail({
-                userId: followup.user_id,
-                body: followup.email_body
+            const { threadId } = await sendEmail({
+                userId: followup.campaign.userId,
+                body: followup.emailBody
             })
 
-            await pool.query(
-                `
-                UPDATE followups
-                SET sent_at = NOW(),
-                    thread_id = $1
-                WHERE id = $2
-                `,
-                [threadId, followupId]
-            )
+            await prisma.followup.update({
+                where: { id: followupId },
+                data: {
+                    sentAt: new Date(),
+                    threadId
+                }
+            })
 
             console.log('follow-up sent:', followupId)
         } catch (err) {

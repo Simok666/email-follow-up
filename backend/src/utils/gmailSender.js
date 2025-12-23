@@ -1,20 +1,26 @@
-const pool = require('../config/db')
+const prisma = require('../config/prisma')
 const { google } = require('googleapis')
 
 async function sendEmail({ userId, body }){
-    const result = await pool.query(
-        `SELECT access_token, refresh_token FROM gmail_accounts WHERE user_id = $1`,
-        [userId]
-    )
+    const account = await prisma.gmailAccount.findUnique({
+        where: {
+            userId
+        }
+    })
 
-    const tokens = result.rows[0]
+    if (!account) {
+        throw new Error('Gmail not connected')
+    }
 
     const auth = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET
     )
 
-    auth.setCredentials(tokens)
+    auth.setCredentials({
+        access_token: account.accessToken,
+        refresh_token: account.refreshToken
+    })
 
     const gmail = google.gmail({ version: 'v1', auth })
 

@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum CampaignStatus {
+  active
+  stopped
+  completed
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  plan      String     @default("free")
+  createdAt DateTime   @default(now())
+
+  campaigns Campaign[]
+  gmail     GmailAccount?
+}
+
+model GmailAccount {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  accessToken  String
+  refreshToken String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Campaign {
+  id        String          @id @default(uuid())
+  userId    String
+  subject   String
+  name      String
+  status    CampaignStatus @default(active)
+  createdAt DateTime        @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+  followups Followup[]
+
+  @@unique([id, userId])
+}
+
+model Followup {
+  id          String   @id @default(uuid())
+  campaignId  String
+  step        Int
+  delayDays   Int
+  emailBody   String
+  sentAt      DateTime?
+  cancelledAt DateTime?
+  threadId    String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+}

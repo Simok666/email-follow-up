@@ -1,36 +1,39 @@
 const followupQueue = require('../queues/followup.queue')
-const pool = require('../config/db')
+const prisma = require('../config/prisma')
 
 async function stopCampaign(campaignId){
      try{
         console.log('ini campaign id', campaignId)
-        await pool.query(
-            `UPDATE campaigns SET status = 'stopped' WHERE id = $1`,
-            [campaignId]
-        )
+        await prisma.campaign.update({
+            where: { id: campaignId },
+            data: { status: 'stopped' }
+        })
 
-        const followups = await pool.query(
-            `
-            SELECT id
-            FROM followups
-            WHERE campaign_id = $1
-                AND sent_at IS NOT NULL
-            `,
-            [campaignId]
-        )
+        const followups = await prisma.followup.findMany({
+            where: {
+                campaignId,
+                sentAt: null,
+                cancelledAt: null
+            },
+            select: {
+                id: true
+            }
+        })
 
-        for (const f of followups.rows) {
+        for (const f of followups) {
             await followupQueue.remove(f.id)
         }
 
-        await pool.query(
-        `
-        UPDATE followups
-        SET cancelled_at = NOW()
-        WHERE campaign_id = $1
-        `,
-        [campaignId]
-    )
+        await prisma.followup.updateMany({
+            where:{
+                campaignId,
+                sentAt:null,
+                cancelledAt:null
+            },
+            data: {
+                cancelledAt: new Date()
+            }
+        })
 
     console.log('Campaign stopped:', campaignId)
      } catch (err) {

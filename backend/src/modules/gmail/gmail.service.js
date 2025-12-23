@@ -1,6 +1,6 @@
 const { google } = require('googleapis')
 const oauth2Client = require('../../config/google')
-const pool = require('../../config/db')
+const prisma = require('../../config/prisma')
 
 const SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
@@ -18,31 +18,35 @@ function getAuthUrl(userId) {
 
 
 async function saveToken(userId, tokens) {
-   await pool.query(
-        `
-            INSERT INTO gmail_accounts (user_id, access_token, refresh_token)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id) DO UPDATE SET
-            access_token = EXCLUDED.access_token,
-            refresh_token = EXCLUDED.refresh_token
-        `,
-        [userId, tokens.access_token, tokens.refresh_token]
-   )
+   return prisma.gmailAccount.upsert({
+    where: {
+        userId
+    },
+    update: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token
+    },
+    create: {
+        userId,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token
+    }
+   })
 }
 
 
 async function sendEmail(userId, to, subject, message) {
-    const result = await pool.query(
-        `SELECT * FROM gmail_accounts WHERE user_id = $1`,
-        [userId]
-    )
+    const account = await prisma.gmailAccount.findUnique({
+        where: {
+            userId
+        }
+    })
 
-    const account = result.rows[0]
     if (!account) throw new Error('Gmail not connected')
     
     oauth2Client.setCredentials({
-        access_token: account.access_token,
-        refresh_token: account.refresh_token
+        access_token: account.accessToken,
+        refresh_token: account.refreshToken
     })
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })

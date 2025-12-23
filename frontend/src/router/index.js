@@ -1,14 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Design System Routes
-const designSystemChildRoutes = (prefix) => [
-  {
-    path: '',
-    name: prefix + '.main',
-    meta: { auth: true, name: 'Design System' },
-    component: () => import('@/views/design-system/IndexPage.vue')
-  }
-]
 // Auth Default Routes
 const authChildRoutes = (prefix) => [
   {
@@ -308,9 +299,9 @@ const landingPageRoutes = (prefix) => [
 const routes = [
   {
     path: '/',
-    name: 'design-system',
-    component: () => import('../layouts/guest/BlankLayout.vue'),
-    children: designSystemChildRoutes('design-system')
+    name: 'dashboard',
+    component: () => import('../layouts/DefaultLayout.vue'),
+    children: defaultChildRoutes('default')
   },
   //landing pages
   {
@@ -320,12 +311,6 @@ const routes = [
     children: landingPageRoutes('landing-page')
   },
   // Default Pages
-  {
-    path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('../layouts/DefaultLayout.vue'),
-    children: defaultChildRoutes('default')
-  },
   // Menu Styles
   {
     path: '/horizontal',

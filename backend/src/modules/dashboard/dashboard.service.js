@@ -1,41 +1,33 @@
-const pool = require('../../config/db')
+const prisma = require('../../config/prisma')
 
 async function getDashboardStats(userId){
-    const activeCampaigns = await pool.query(
-        `
-        SELECT COUNT(*)
-        FROM campaigns
-        WHERE user_id = $1
-        AND status = 'active'
-        `,
-        [userId]
-    )
+    const activeCampaigns = await prisma.campaign.count({
+        where: {
+            userId,
+            status: 'active'
+        }
+    })
 
-    const followupsSent = await pool.query(
-        `
-        SELECT COUNT(*)
-        FROM followups f 
-        JOIN campaigns c ON f.campaign_id = c.id
-        WHERE c.user_id = $1
-        AND f.sent_at IS NOT NULL
-        `,
-        [userId]
-    )
+    const followupsSent = await prisma.followup.count({
+        where: {
+            sentAt: { not: null },
+            campaign: {
+                userId
+            }
+        }
+    })
 
-    const repliedCampaigns = await pool.query(
-        `
-        SELECT COUNT(*)
-        FROM campaigns
-        WHERE user_id = $1
-        AND status = 'stopped'
-        `,
-        [userId]
-    )
+    const repliedCampaigns = await prisma.campaign.count({
+        where: {
+            userId,
+            status: 'stopped'
+        }
+    })
 
     return {
-        activeCampaigns: Number(activeCampaigns.rows[0].count),
-        followupsSent: Number(followupsSent.rows[0].count),
-        repliedCampaigns: Number(repliedCampaigns.rows[0].count)
+        activeCampaigns,
+        followupsSent,
+        repliedCampaigns
     }
 }
 
