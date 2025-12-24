@@ -20,16 +20,86 @@ enum CampaignStatus {
   completed
 }
 
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+}
+
+enum SignatureType {
+  TYPED
+  DRAWN
+  UPLOADED
+}
+
 model User {
   id        String     @id @default(uuid())
   email     String     @unique
   password  String
   plan      String     @default("free")
+  templates Template[]
+  contracts Contract[]
   createdAt DateTime   @default(now())
 
   campaigns Campaign[]
   gmail     GmailAccount?
 }
+
+model Template {
+  id        String @id @default(uuid())
+  userId    String  
+  title     String
+  fileUrl   String
+  user      User @relation(fields: [userId], references: [id])
+  contracts Contract[]
+  createdAt DateTime @default(now())
+}
+
+model Contract {
+  id              String  @id @default(uuid())
+  templateId      String
+  userId          String
+  status          ContractStatus @default(DRAFT)
+  publicLink      String   @unique
+  finalPdfUrl     String?
+  signedAt        DateTime?
+  template        Template @relation(fields: [templateId], references: [id])
+  user            User @relation(fields: [userId], references: [id])
+  variables       ContractVariable[]
+  signatures      Signature[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime @default(now())
+}
+
+model ContractVariable {
+  id          String @id @default(uuid())
+  contractId  String
+  key         String
+  value       String
+  contract    Contract @relation(fields: [contractId], references: [id])
+}
+
+model Signature {
+  id          String @id @default(uuid())
+  contractId  String
+  signerName  String
+  type        SignatureType
+  value        String
+  signedAt    DateTime  @default(now())
+  contract    Contract @relation(fields: [contractId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  contractId String
+  action     String
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  contract   Contract @relation(fields: [contractId], references: [id])
+}
+
+
 
 model GmailAccount {
   id           String   @id @default(uuid())
